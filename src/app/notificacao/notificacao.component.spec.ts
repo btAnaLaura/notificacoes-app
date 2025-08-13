@@ -1,110 +1,92 @@
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { NotificacaoComponent } from './notificacao.component';
-import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { of, throwError } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 
-// Mock do uuid para controlar o valor do id
 jest.mock('uuid', () => ({
   v4: jest.fn(),
 }));
 
-describe('NotificacaoComponent', () => {
-  let component: NotificacaoComponent;
-  let fixture: ComponentFixture<NotificacaoComponent>;
-  let httpMock: HttpTestingController;
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [NotificacaoComponent, HttpClientTestingModule, FormsModule]
-    }).compileComponents();
-  }));
+describe('NotificacaoComponent - Funcional', () => {
+  let component: NotificacaoComponent;
+  let httpClientMock: jest.Mocked<HttpClient>;
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NotificacaoComponent);
-    component = fixture.componentInstance;
-    httpMock = TestBed.inject(HttpTestingController);
-
-    // Mock do alert
+    httpClientMock = {
+      post: jest.fn(),
+      get: jest.fn(),
+    } as any;
+    component = new NotificacaoComponent(httpClientMock);
     global.alert = jest.fn();
   });
 
-  afterEach(() => {
-    httpMock.verify(); // Verifica que não há requisições pendentes
-    jest.clearAllMocks();
-  });
-
-  it('deve alertar se conteudoMensagem estiver vazio', () => {
-    component.conteudoMensagem = '   ';
-    component.enviarNotificacao();
-
-    expect(global.alert).toHaveBeenCalledWith('Por favor, insira uma mensagem');
-  });
-
-  it('deve gerar mensagemId, enviar POST e adicionar notificação na lista com status inicial', () => {
-    component.conteudoMensagem = 'Mensagem teste';
-    (uuidv4 as jest.Mock).mockReturnValue('mocked-uuid');
-
-    component.enviarNotificacao();
-
-    // Espera a requisição POST ser feita
-    const req = httpMock.expectOne('http://localhost:3000/api/notificar');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({
-      mensagemId: 'mocked-uuid',
-      conteudoMensagem: 'Mensagem teste'
+  describe('enviarNotificacao', () => {
+    it('deve alertar se conteudoMensagem estiver vazio', () => {
+      component.conteudoMensagem = '   ';
+      component.enviarNotificacao();
+      expect(global.alert).toHaveBeenCalledWith('Por favor, insira uma mensagem');
+      expect(httpClientMock.post).not.toHaveBeenCalled();
     });
 
-    // Simula resposta bem-sucedida
-    req.flush({ mensagemId: 'mocked-uuid', status: 'Recebido e publicado para processamento' });
+    it('deve enviar notificação e limpar conteudoMensagem', () => {
+      (uuidv4 as jest.Mock).mockReturnValue('id-mock');
+      component.conteudoMensagem = 'Mensagem funcional';
+      httpClientMock.post.mockReturnValue(of({}));
 
-    // Verifica se a notificação foi adicionada à lista com status inicial
-    expect(component.notificacoes.length).toBe(1);
-    expect(component.notificacoes[0]).toEqual({
-      mensagemId: 'mocked-uuid',
-      conteudoMensagem: 'Mensagem teste',
-      status: 'AGUARDANDO PROCESSAMENTO'
+      component.enviarNotificacao();
+
+      expect(httpClientMock.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/notificar',
+        { mensagemId: 'id-mock', conteudoMensagem: 'Mensagem funcional' }
+      );
+      expect(component.notificacoes.length).toBe(1);
+      expect(component.notificacoes[0]).toEqual({
+        mensagemId: 'id-mock',
+        conteudoMensagem: 'Mensagem funcional',
+        status: 'AGUARDANDO PROCESSAMENTO'
+      });
+      expect(component.conteudoMensagem).toBe('');
     });
 
-    // ConteudoMensagem deve ser limpo
-    expect(component.conteudoMensagem).toBe('');
+    it('deve alertar erro se POST falhar', () => {
+      (uuidv4 as jest.Mock).mockReturnValue('id-erro');
+      component.conteudoMensagem = 'Mensagem erro';
+      httpClientMock.post.mockReturnValue(throwError(() => ({ message: 'Falha no envio' })));
+
+      component.enviarNotificacao();
+
+      expect(global.alert).toHaveBeenCalledWith('Erro ao enviar notificação: Falha no envio');
+    });
   });
 
-  it('deve alertar erro se requisição POST falhar', () => {
-    component.conteudoMensagem = 'Mensagem erro';
-    (uuidv4 as jest.Mock).mockReturnValue('error-uuid');
+  describe('atualizarStatusMensagens', () => {
+    it('deve atualizar status das notificações', () => {
+      component.notificacoes = [
+        { mensagemId: 'id1', conteudoMensagem: 'msg1', status: 'AGUARDANDO PROCESSAMENTO' },
+        { mensagemId: 'id2', conteudoMensagem: 'msg2', status: 'AGUARDANDO PROCESSAMENTO' }
+      ];
 
-    component.enviarNotificacao();
+      httpClientMock.get
+        .mockReturnValueOnce(of({ mensagemId: 'id1', status: 'PROCESSADO_SUCESSO' }))
+        .mockReturnValueOnce(of({ mensagemId: 'id2', status: 'FALHA_PROCESSAMENTO' }));
 
-    const req = httpMock.expectOne('http://localhost:3000/api/notificar');
-    expect(req.request.method).toBe('POST');
+      component.atualizarStatusMensagens();
 
-    req.flush({ message: 'Erro teste' }, { status: 500, statusText: 'Server Error' });
+      expect(httpClientMock.get).toHaveBeenCalledWith('http://localhost:3000/api/notificacao/status/id1');
+      expect(httpClientMock.get).toHaveBeenCalledWith('http://localhost:3000/api/notificacao/status/id2');
+      expect(component.notificacoes[0].status).toBe('PROCESSADO_SUCESSO');
+      expect(component.notificacoes[1].status).toBe('FALHA_PROCESSAMENTO');
+    });
 
-    expect(global.alert).toHaveBeenCalledWith('Erro ao enviar notificação: Http failure response for http://localhost:3000/api/notificar: 500 Server Error');
-  });
+    it('deve ignorar erro ao atualizar status', () => {
+      component.notificacoes = [
+        { mensagemId: 'id1', conteudoMensagem: 'msg1', status: 'AGUARDANDO PROCESSAMENTO' }
+      ];
+      httpClientMock.get.mockReturnValueOnce(throwError(() => ({ status: 404 })));
 
-  it('deve atualizar status das notificações via polling', () => {
-    component.notificacoes = [
-      { mensagemId: 'id1', conteudoMensagem: 'msg1', status: 'AGUARDANDO PROCESSAMENTO' },
-      { mensagemId: 'id2', conteudoMensagem: 'msg2', status: 'AGUARDANDO PROCESSAMENTO' }
-    ];
-
-    component.atualizarStatusMensagens();
-
-    // Deve ter feito duas requisições GET, uma para cada mensagemId
-    const req1 = httpMock.expectOne('http://localhost:3000/api/notificacao/status/id1');
-    const req2 = httpMock.expectOne('http://localhost:3000/api/notificacao/status/id2');
-
-    expect(req1.request.method).toBe('GET');
-    expect(req2.request.method).toBe('GET');
-
-    // Simula respostas de status
-    req1.flush({ mensagemId: 'id1', status: 'PROCESSADO_SUCESSO' });
-    req2.flush({ mensagemId: 'id2', status: 'FALHA_PROCESSAMENTO' });
-
-    // Verifica se os status foram atualizados no array
-    expect(component.notificacoes[0].status).toBe('PROCESSADO_SUCESSO');
-    expect(component.notificacoes[1].status).toBe('FALHA_PROCESSAMENTO');
+      expect(() => component.atualizarStatusMensagens()).not.toThrow();
+      expect(component.notificacoes[0].status).toBe('AGUARDANDO PROCESSAMENTO');
+    });
   });
 });

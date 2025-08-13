@@ -63,8 +63,8 @@ export class NotificacaoComponent {
         next: (res) => {
           notif.status = res.status;
         },
-        error: () => {
-          // Ignorar erro 404, por exemplo
+        error: (err) => {
+          alert('Erro ao atualizar status da mensagem: ' + (err?.message || 'Erro desconhecido'));
         }
       });
     });
