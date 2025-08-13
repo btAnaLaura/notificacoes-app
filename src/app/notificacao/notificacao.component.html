@@ -1,0 +1,23 @@
+<div>
+  <input type="text" [(ngModel)]="conteudoMensagem" placeholder="Digite a mensagem" />
+  <button (click)="enviarNotificacao()">Enviar Notificação</button>
+</div>
+
+<table border="1" cellpadding="6" cellspacing="0" style="margin-top:20px; width: 100%; max-width: 600px;">
+  <thead>
+    <tr>
+      <th>ID da Mensagem</th>
+      <th>Conteúdo</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let notif of notificacoes">
+      <td>{{notif.mensagemId}}</td>
+      <td>{{notif.conteudoMensagem}}</td>
+      <td [style.color]="notif.status === 'PROCESSADO_SUCESSO' ? 'green' : (notif.status === 'FALHA_PROCESSAMENTO' ? 'red' : 'black')">
+        {{notif.status}}
+      </td>
+    </tr>
+  </tbody>
+</table>
