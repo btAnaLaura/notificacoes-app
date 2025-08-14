@@ -1,36 +1,23 @@
 {
-  "name": "notificacoes-app",
-  "version": "0.0.0",
+  "name": "vr-proj",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "jest"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "private": true,
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
-    "@angular/common": "^20.1.6",
-    "@angular/compiler": "^20.1.6",
-    "@angular/core": "^20.1.6",
-    "@angular/forms": "^20.1.6",
-    "@angular/platform-browser": "^20.1.6",
-    "@angular/platform-browser-dynamic": "^20.1.6",
-    "@angular/router": "^20.1.6",
+    "amqplib": "^0.10.8",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "ngx-socket-io": "^4.9.3",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "uuid": "^11.1.0",
-    "zone.js": "~0.15.0"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@angular/build": "^20.1.5",
-    "@angular/cli": "^20.1.5",
-    "@angular/compiler-cli": "^20.1.6",
-    "@types/jest": "^29.5.12",
-    "jest": "^30.0.0",
-    "jest-preset-angular": "^15.0.0",
-    "ts-jest": "^29.1.1",
-    "typescript": "~5.8.3"
+    "jasmine": "^5.9.0"
   }
 }
